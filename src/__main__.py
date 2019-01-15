@@ -39,7 +39,7 @@ vh_out = data_dir + "Processed/Out/Radio_Cal/VH"
 vv_out = data_dir + "Processed/Out/Radio_Cal/VV"
 
 logic_out = data_dir + "Processed/Out/Logic_Board/Logic_Board"
-ainsworth_quality = data_dir + "Processed/Out/Logic_Board/Data_Quality"
+ainsworth_quality = data_dir + "Processed/Out/Logic_Board/Data_Quality_A"
 crstlk_dir_q = data_dir + "Processed/Out/Crosstalk_Q/"
 crstlk_dir_a = data_dir + "Processed/Out/Crosstalk_A/"
 
@@ -128,17 +128,18 @@ a_cap_img = data_dir + "Processed/Out/A"
 
 # td.dump_data()
 
-crstlk_est.ainsworth(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a)
+# crstlk_est.ainsworth(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a)
 
 # crstlk_est.ainsworth_mod(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a, data_quality_img=ainsworth_quality)
+
 crstlk_est.range_binning(crstlk_dir=crstlk_dir_a, out_dir=range_bin_out_a, range_direction=1)
 
-crstlk_cor.apply_correction(
-    hh_img=hh_out,
-    hv_img=hv_out,
-    vh_img=vh_out,
-    vv_img=vv_out,
-    params_dir=range_bin_out_a,
-    out_dir=crosscal_out_a,
-    error_map=err_img
-)
+# crstlk_cor.apply_correction(
+#     hh_img=hh_out,
+#     hv_img=hv_out,
+#     vh_img=vh_out,
+#     vv_img=vv_out,
+#     params_dir=range_bin_out_a,
+#     out_dir=crosscal_out_a,
+#     error_map=err_img
+# )

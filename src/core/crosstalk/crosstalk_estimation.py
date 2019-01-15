@@ -164,7 +164,7 @@ def quegan(cov_dir, crosstalk_dir, logic_img, m=1.0, x_start=0, y_start=0, xoffs
 def ainsworth(
         cov_dir,
         crosstalk_dir,
-        max_iter=15,
+        max_iter=16,
         epsilon=1e-8,
         x_start=0,
         y_start=0,
@@ -293,131 +293,152 @@ def ainsworth(
 
             while gamma > epsilon and iter_count < max_iter:
 
-                ralpha = alpha ** 0.5
-                ralpha_inv = 1 / ralpha
-                sigma = (1 / (((u * w) - 1) * ((v * z) - 1))) * np.array(
-                    [
-                        [
-                            (1 + 0j),
-                            -w,
-                            -v,
-                            v * w
-                        ],
-                        [
-                            -u * ralpha_inv,
-                            ralpha_inv,
-                            u * v * ralpha_inv,
-                            -v * ralpha_inv
-                        ],
-                        [
-                            -z * ralpha,
-                            w * z * ralpha,
-                            ralpha,
-                            -w * ralpha
-                        ],
-                        [
-                            u * z,
-                            -z,
-                            -u,
-                            (1 + 0j)
-                        ]
-                    ]
-                )
-                sigma_dagger = np.transpose(np.conj(sigma))
-                c_cap = np.matmul(sigma, np.matmul(c_cap, sigma_dagger))
-                c11_i = c_cap[0][0]
-                # c12_i = c_cap[0][1]
-                # c13_i = c_cap[0][2]
-                c14_i = c_cap[0][3]
-                c21_i = c_cap[1][0]
-                c22_i = c_cap[1][1]
-                c23_i = c_cap[1][2]
-                c24_i = c_cap[1][3]
-                c31_i = c_cap[2][0]
-                c32_i = c_cap[2][1]
-                c33_i = c_cap[2][2]
-                c34_i = c_cap[2][3]
-                c41_i = c_cap[3][0]
-                # c42_i = c_cap[3][1]
-                # c43_i = c_cap[3][2]
-                c44_i = c_cap[3][3]
+                beta1 = c_cap[1][1]
+                beta2 = c_cap[2][2]
 
-                a_cap = 0.5 * (c31_i + c21_i)
-                b_cap = 0.5 * (c34_i + c24_i)
+                eta1 = beta1 - c_cap[2][1]
+                eta2 = beta2 - c_cap[1][2]
 
-                if c23_i != 0j and c33_i != 0j:
-                    t1_i = c23_i / np.abs(c23_i)
-                    t2_i = (np.abs(c22_i / c33_i)) ** 0.5
-                    alpha_i = t1_i * t2_i
+                indicator1 = np.inf
+                indicator2 = np.inf
 
-                    zeta = np.array(
+                if beta1 != 0j:
+                    indicator1 = np.abs(eta1 / beta1)
+
+                if beta2 != 0j:
+                    indicator2 = np.abs(eta2 / beta2)
+
+                if (indicator1 <= 1) or (indicator2 <= 1):
+
+                    ralpha = alpha ** 0.5
+                    ralpha_inv = 1 / ralpha
+                    sigma = (1 / (((u * w) - 1) * ((v * z) - 1))) * np.array(
                         [
-                            [0, 0, c41_i, c11_i],
-                            [c11_i, c41_i, 0, 0],
-                            [0, 0, c44_i, c14_i],
-                            [c14_i, c44_i, 0, 0]
+                            [
+                                (1 + 0j),
+                                -w,
+                                -v,
+                                v * w
+                            ],
+                            [
+                                -u * ralpha_inv,
+                                ralpha_inv,
+                                u * v * ralpha_inv,
+                                -v * ralpha_inv
+                            ],
+                            [
+                                -z * ralpha,
+                                w * z * ralpha,
+                                ralpha,
+                                -w * ralpha
+                            ],
+                            [
+                                u * z,
+                                -z,
+                                -u,
+                                (1 + 0j)
+                            ]
                         ]
                     )
+                    sigma_dagger = np.transpose(np.conj(sigma))
+                    c_iter = np.matmul(sigma, np.matmul(c_cap, sigma_dagger))
+                    c11_i = c_iter[0][0]
+                    # c12_i = c_iter[0][1]
+                    # c13_i = c_cap[0][2]
+                    c14_i = c_iter[0][3]
+                    c21_i = c_iter[1][0]
+                    c22_i = c_iter[1][1]
+                    c23_i = c_iter[1][2]
+                    c24_i = c_iter[1][3]
+                    c31_i = c_iter[2][0]
+                    c32_i = c_iter[2][1]
+                    c33_i = c_iter[2][2]
+                    c34_i = c_iter[2][3]
+                    c41_i = c_iter[3][0]
+                    # c42_i = c_iter[3][1]
+                    # c43_i = c_iter[3][2]
+                    c44_i = c_iter[3][3]
 
-                    tau = np.array(
-                        [
-                            [0, c33_i, c32_i, 0],
-                            [0, c23_i, c22_i, 0],
-                            [c33_i, 0, 0, c32_i],
-                            [c23_i, 0, 0, c22_i]
-                        ]
-                    )
+                    a_cap = 0.5 * (c31_i + c21_i)
+                    b_cap = 0.5 * (c34_i + c24_i)
 
-                    chi = np.array(
-                        [
-                            [c31_i - a_cap],
-                            [c21_i - a_cap],
-                            [c34_i - b_cap],
-                            [c24_i - b_cap]
-                        ]
-                    )
+                    if c23_i != 0j and c33_i != 0j:
+                        t1_i = c23_i / np.abs(c23_i)
+                        t2_i = (np.abs(c22_i / c33_i)) ** 0.5
+                        alpha_i = t1_i * t2_i
 
-                    rchi = chi.real
-                    ichi = chi.imag
+                        zeta = np.array(
+                            [
+                                [0, 0, c41_i, c11_i],
+                                [c11_i, c41_i, 0, 0],
+                                [0, 0, c44_i, c14_i],
+                                [c14_i, c44_i, 0, 0]
+                            ]
+                        )
 
-                    zpt = zeta + tau
-                    zmt = zeta - tau
+                        tau = np.array(
+                            [
+                                [0, c33_i, c32_i, 0],
+                                [0, c23_i, c22_i, 0],
+                                [c33_i, 0, 0, c32_i],
+                                [c23_i, 0, 0, c22_i]
+                            ]
+                        )
 
-                    rzpt = zpt.real
-                    izpt = zpt.imag
+                        chi = np.array(
+                            [
+                                [c31_i - a_cap],
+                                [c21_i - a_cap],
+                                [c34_i - b_cap],
+                                [c24_i - b_cap]
+                            ]
+                        )
 
-                    rzmt = zmt.real
-                    izmt = zmt.imag
+                        rchi = chi.real
+                        ichi = chi.imag
 
-                    try:
-                        rzmt_inv = np.linalg.inv(rzmt)
-                        izmt_inv = np.linalg.inv(izmt)
+                        zpt = zeta + tau
+                        zmt = zeta - tau
 
-                        t3 = np.linalg.inv(np.matmul(izmt_inv, rzpt) + np.matmul(rzmt_inv, izpt))
-                    except np.linalg.linalg.LinAlgError as inv_err:
+                        rzpt = zpt.real
+                        izpt = zpt.imag
+
+                        rzmt = zmt.real
+                        izmt = zmt.imag
+
+                        try:
+                            rzmt_inv = np.linalg.inv(rzmt)
+                            izmt_inv = np.linalg.inv(izmt)
+
+                            t3 = np.linalg.inv(np.matmul(izmt_inv, rzpt) + np.matmul(rzmt_inv, izpt))
+                        except np.linalg.linalg.LinAlgError as inv_err:
+                            u = v = w = z = alpha = np.nan
+                            print(inv_err)
+                            break
+                        t4 = np.matmul(izmt_inv, rchi) + np.matmul(rzmt_inv, ichi)
+
+                        rdelta = np.matmul(t3, t4)
+                        idelta = np.matmul(rzmt_inv, (ichi - np.matmul(izpt, rdelta)))
+                        delta = rdelta + (1j * idelta)
+
+                        u_i = delta[0][0]
+                        v_i = delta[1][0]
+                        w_i = delta[2][0]
+                        z_i = delta[3][0]
+
+                        u += u_i * ralpha_inv
+                        v += v_i * ralpha_inv
+                        w += w_i * ralpha
+                        z += z_i * ralpha
+
+                        alpha *= alpha_i
+
+                        d_params = np.array([u_i, v_i, w_i, z_i])
+                        gamma = np.max(np.abs(d_params))
+
+                    else:
                         u = v = w = z = alpha = np.nan
-                        print(inv_err)
                         break
-                    t4 = np.matmul(izmt_inv, rchi) + np.matmul(rzmt_inv, ichi)
-
-                    rdelta = np.matmul(t3, t4)
-                    idelta = np.matmul(rzmt_inv, (ichi - np.matmul(izpt, rdelta)))
-                    delta = rdelta + (1j * idelta)
-
-                    u_i = delta[0][0]
-                    v_i = delta[1][0]
-                    w_i = delta[2][0]
-                    z_i = delta[3][0]
-
-                    u += u_i * ralpha_inv
-                    v += v_i * ralpha_inv
-                    w += w_i * ralpha
-                    z += z_i * ralpha
-
-                    alpha *= alpha_i
-
-                    d_params = np.array([u_i, v_i, w_i, z_i])
-                    gamma = np.max(np.abs(d_params))
 
                 else:
                     u = v = w = z = alpha = np.nan
@@ -572,7 +593,10 @@ def ainsworth_mod(
                 ]
             )
 
-            alpha = ((np.abs(c_cap[2][2] / c_cap[1][1])) ** 0.25) * (np.exp(1j * (0.5 * np.arctan(c_cap[2][1]))))
+            tmp1 = ((np.abs(c_cap[2][2] / c_cap[1][1])) ** 0.25)
+            tmp2 = (np.exp(1j * (0.5 * np.arctan(c_cap[2][1].imag / c_cap[2][1].real))))
+
+            alpha = tmp1 * tmp2
             k = 1 + 0j
 
             gamma = np.inf
@@ -620,7 +644,7 @@ def ainsworth_mod(
                     c43p = c_cap[3][2] * ((k * alpha) / np.conj(alpha))
                     c44p = c_cap[3][3] * ((np.abs(k) ** 2) * (np.abs(alpha) ** 2))
 
-                    sigma = np.array(
+                    sigma1 = np.array(
                         [
                             [c11p, c12p, c13p, c14p],
                             [c21p, c22p, c23p, c24p],
@@ -675,13 +699,13 @@ def ainsworth_mod(
                         rzmt_inv = np.linalg.inv(rzmt)
                         izmt_inv = np.linalg.inv(izmt)
 
-                        t1 = np.linalg.inv(np.matmul(izmt_inv, rzpt) + np.matmul(rzmt_inv, izpt))
+                        t3 = np.linalg.inv(np.matmul(izmt_inv, rzpt) + np.matmul(rzmt_inv, izpt))
                     except np.linalg.linalg.LinAlgError as inv_err:
                         print(inv_err)
                         break
-                    t2 = np.matmul(izmt_inv, rchi) + np.matmul(rzmt_inv, ichi)
+                    t4 = np.matmul(izmt_inv, rchi) + np.matmul(rzmt_inv, ichi)
 
-                    rdelta = t1 * t2
+                    rdelta = np.matmul(t3, t4)
                     idelta = np.matmul(rzmt_inv, (ichi - np.matmul(izpt, rdelta)))
                     delta = rdelta + (1j * idelta)
 
@@ -706,13 +730,13 @@ def ainsworth_mod(
 
                     correction_right = np.conj(np.transpose(correction_left))
 
-                    sigma1 = np.matmul(correction_left, np.matmul(sigma, correction_right))
+                    sigma2 = np.matmul(correction_left, np.matmul(sigma1, correction_right))
 
-                    s_22 = sigma1[1][1]
-                    s_32 = sigma1[2][1]
-                    s_33 = sigma1[2][2]
+                    s_22 = sigma2[1][1]
+                    s_32 = sigma2[2][1]
+                    s_33 = sigma2[2][2]
 
-                    alpha_update = ((s_33 / s_22) ** 0.25) * (np.exp(1j * (0.5 * np.arctan(s_32))))
+                    alpha_update = ((s_33 / s_22) ** 0.25) * (np.exp(1j * (0.5 * np.arctan(s_32.imag / s_32.real))))
                     alpha *= alpha_update
 
                     m_t = alpha_update ** 2
@@ -828,28 +852,28 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                 z = z_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
 
-                if not np.isnan(u):
+                if (not np.isnan(u)) and (np.abs(u) <= 1.0):
                     u_dat[0][j] += u
                     u_n[0][j] += 1
                     # print(u)
 
-                if not np.isnan(v):
+                if (not np.isnan(v)) and (np.abs(v) <= 1.0):
                     v_dat[0][j] += v
                     v_n[0][j] += 1
                     # print(v)
 
-                if not np.isnan(w):
+                if (not np.isnan(w)) and (np.abs(w) <= 1.0):
                     w_dat[0][j] += w
                     w_n[0][j] += 1
                     # print(w)
 
-                if not np.isnan(z):
+                if not (np.isnan(z)) and (np.abs(z) <= 1.0):
                     z_dat[0][j] += z
                     z_n[0][j] += 1
                     # print(z)
 
                 if not np.isnan(alpha):
-                    alpha_dat[0][j] += u
+                    alpha_dat[0][j] += alpha
                     alpha_n[0][j] += 1
                     # print(alpha)
 
@@ -909,23 +933,23 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                 z = z_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
 
-                if not np.isnan(v):
+                if (np.isfinite(u)) and (np.abs(u) <= 1.0):
                     u_dat[i][0] += u
                     u_n[i][0] += 1
 
-                if not np.isnan(v):
+                if (np.isfinite(v)) and (np.abs(v) <= 1.0):
                     v_dat[i][0] += v
                     v_n[i][0] += 1
 
-                if not np.isnan(w):
+                if (np.isfinite(w)) and (np.abs(w) <= 1.0):
                     w_dat[i][0] += w
                     w_n[i][0] += 1
 
-                if not np.isnan(z):
+                if (np.isfinite(z)) and (np.abs(z) <= 1.0):
                     z_dat[i][0] += z
                     z_n[i][0] += 1
 
-                if not np.isnan(alpha):
+                if np.isfinite(alpha):
                     alpha_dat[i][0] += alpha
                     alpha_n[i][0] += 1
 
