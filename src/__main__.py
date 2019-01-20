@@ -4,6 +4,7 @@ import src.core.crosstalk.crosstalk_estimation as crstlk_est
 import src.core.radiometry.radiometric_estimation as radio_est
 import src.core.radiometry.radiometric_correction as rcal
 import src.core.crosstalk.crosstalk_correction as crstlk_cor
+import src.error.MNE_estimation as me
 import testing.dump as td
 
 # data_dir = "/media/abhisek/Store/Storage/UAVSAR_PBand_ENVI/"
@@ -130,9 +131,9 @@ a_cap_img = data_dir + "Processed/Out/A"
 
 # crstlk_est.ainsworth(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a)
 
-# crstlk_est.ainsworth_mod(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a, data_quality_img=ainsworth_quality)
+# crstlk_est.ainsworth_orig(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a, data_quality_img=ainsworth_quality)
 
-crstlk_est.range_binning(crstlk_dir=crstlk_dir_a, out_dir=range_bin_out_a, range_direction=1)
+# crstlk_est.range_binning(crstlk_dir=crstlk_dir_a, out_dir=range_bin_out_a, range_direction=1)
 
 # crstlk_cor.apply_correction(
 #     hh_img=hh_out,
@@ -143,3 +144,95 @@ crstlk_est.range_binning(crstlk_dir=crstlk_dir_a, out_dir=range_bin_out_a, range
 #     out_dir=crosscal_out_a,
 #     error_map=err_img
 # )
+
+# me.estimate_mne(
+#     u_img=range_bin_out_a+"u",
+#     v_img=range_bin_out_a+"v",
+#     w_img=range_bin_out_a+"w",
+#     z_img=range_bin_out_a+"z",
+#     mne_img=range_bin_out_a+"MNE"
+# )
+
+# me.estimate_mne(
+#     u_img=range_bin_out_q+"u",
+#     v_img=range_bin_out_q+"v",
+#     w_img=range_bin_out_q+"w",
+#     z_img=range_bin_out_q+"z",
+#     mne_img=range_bin_out_q+"MNE_crstlk"
+# )
+
+
+########### Estimation of Posterior MNE ##################
+
+quegan_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_Q/"
+ansrth_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_A/"
+
+cov_out_q = quegan_dir + "COV_Q/"
+cov_out_a = ansrth_dir + "COV_A/"
+hh_q = quegan_dir + "HH_Cal"
+hv_q = quegan_dir + "HV_Cal"
+vh_q = quegan_dir + "VH_Cal"
+vv_q = quegan_dir + "VV_Cal"
+
+hh_a = ansrth_dir + "HH_Cal"
+hv_a = ansrth_dir + "HV_Cal"
+vh_a = ansrth_dir + "VH_Cal"
+vv_a = ansrth_dir + "VV_Cal"
+
+crstk_dir_Q = quegan_dir + "Crosstalk_Params_Q"
+crstk_dir_A = ansrth_dir + "Crosstalk_Params_A"
+
+range_corrected_A = ansrth_dir + "Range_Corrected_Params_A"
+range_corrected_Q = quegan_dir + "Range_Corrected_Params_Q"
+
+logic_Q = quegan_dir + "Logic_Board_Q/Logic_Board"
+
+# Quegan
+
+# cov.compute_covar(
+#     hh_img=hh_q,
+#     hv_img=hv_q,
+#     vh_img=vh_q,
+#     vv_img=vv_q,
+#     out_dir=cov_out_q,
+#     winxsize=3,
+#     winysize=3
+# )
+
+correl.logicboard(cov_dir=cov_out_q, out_img=logic_Q, threshold=0.3)
+crstlk_est.quegan(cov_dir=cov_out_q, crosstalk_dir=crstk_dir_Q, logic_img=logic_Q)
+crstlk_est.range_binning(crstlk_dir=crstk_dir_Q, out_dir=range_corrected_Q, range_direction=1)
+
+
+me.estimate_mne(
+    u_img=range_corrected_Q + "u",
+    v_img=range_corrected_Q + "v",
+    w_img=range_corrected_Q + "w",
+    z_img=range_corrected_Q + "z",
+    mne_img=quegan_dir + "MNE"
+)
+
+
+# Ainsworth
+
+cov.compute_covar(
+    hh_img=hh_a,
+    hv_img=hv_a,
+    vh_img=vh_a,
+    vv_img=vv_a,
+    out_dir=cov_out_q,
+    winxsize=3,
+    winysize=3
+)
+
+crstlk_est.ainsworth(cov_dir=cov_out_a, crosstalk_dir=crstk_dir_A)
+crstlk_est.range_binning(crstlk_dir=crstk_dir_A, out_dir=range_corrected_A, range_direction=1)
+
+
+me.estimate_mne(
+    u_img=range_corrected_A + "u",
+    v_img=range_corrected_A + "v",
+    w_img=range_corrected_A + "w",
+    z_img=range_corrected_A + "z",
+    mne_img=ansrth_dir + "MNE"
+)

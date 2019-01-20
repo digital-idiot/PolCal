@@ -291,7 +291,7 @@ def ainsworth(
 
             u = v = w = z = 0j
 
-            while gamma > epsilon and iter_count < max_iter:
+            while gamma > epsilon and iter_count < max_iter and alpha > epsilon:
 
                 beta1 = c_cap[1][1]
                 beta2 = c_cap[2][2]
@@ -340,6 +340,7 @@ def ainsworth(
                             ]
                         ]
                     )
+
                     sigma_dagger = np.transpose(np.conj(sigma))
                     c_iter = np.matmul(sigma, np.matmul(c_cap, sigma_dagger))
                     c11_i = c_iter[0][0]
@@ -468,7 +469,7 @@ def ainsworth(
     return 0
 
 
-def ainsworth_mod(
+def ainsworth_orig(
         cov_dir,
         crosstalk_dir,
         data_quality_img,
