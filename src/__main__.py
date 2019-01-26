@@ -5,7 +5,9 @@ import src.core.radiometry.radiometric_estimation as radio_est
 import src.core.radiometry.radiometric_correction as rcal
 import src.core.crosstalk.crosstalk_correction as crstlk_cor
 import src.error.MNE_estimation as me
+import src.error.SNR_estimation as snrc
 import testing.dump as td
+import src.POA.poa_shift as poa
 
 # data_dir = "/media/abhisek/Store/Storage/UAVSAR_PBand_ENVI/"
 data_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/"
@@ -43,7 +45,6 @@ logic_out = data_dir + "Processed/Out/Logic_Board/Logic_Board"
 ainsworth_quality = data_dir + "Processed/Out/Logic_Board/Data_Quality_A"
 crstlk_dir_q = data_dir + "Processed/Out/Crosstalk_Q/"
 crstlk_dir_a = data_dir + "Processed/Out/Crosstalk_A/"
-
 
 crosscal_out_q = data_dir + "Processed/Out/Cal_Out_Q/"
 crosscal_out_a = data_dir + "Processed/Out/Cal_Out_A/"
@@ -179,11 +180,11 @@ hv_a = ansrth_dir + "HV_Cal"
 vh_a = ansrth_dir + "VH_Cal"
 vv_a = ansrth_dir + "VV_Cal"
 
-crstk_dir_Q = quegan_dir + "Crosstalk_Params_Q"
-crstk_dir_A = ansrth_dir + "Crosstalk_Params_A"
+crstk_dir_Q = quegan_dir + "Crosstalk_Params_Q/"
+crstk_dir_A = ansrth_dir + "Crosstalk_Params_A/"
 
-range_corrected_A = ansrth_dir + "Range_Corrected_Params_A"
-range_corrected_Q = quegan_dir + "Range_Corrected_Params_Q"
+range_corrected_A = ansrth_dir + "Range_Corrected_Params_A/"
+range_corrected_Q = quegan_dir + "Range_Corrected_Params_Q/"
 
 logic_Q = quegan_dir + "Logic_Board_Q/Logic_Board"
 
@@ -198,41 +199,60 @@ logic_Q = quegan_dir + "Logic_Board_Q/Logic_Board"
 #     winxsize=3,
 #     winysize=3
 # )
-
-correl.logicboard(cov_dir=cov_out_q, out_img=logic_Q, threshold=0.3)
-crstlk_est.quegan(cov_dir=cov_out_q, crosstalk_dir=crstk_dir_Q, logic_img=logic_Q)
-crstlk_est.range_binning(crstlk_dir=crstk_dir_Q, out_dir=range_corrected_Q, range_direction=1)
-
-
-me.estimate_mne(
-    u_img=range_corrected_Q + "u",
-    v_img=range_corrected_Q + "v",
-    w_img=range_corrected_Q + "w",
-    z_img=range_corrected_Q + "z",
-    mne_img=quegan_dir + "MNE"
-)
-
-
-# Ainsworth
-
-cov.compute_covar(
-    hh_img=hh_a,
-    hv_img=hv_a,
-    vh_img=vh_a,
-    vv_img=vv_a,
-    out_dir=cov_out_q,
-    winxsize=3,
-    winysize=3
-)
-
-crstlk_est.ainsworth(cov_dir=cov_out_a, crosstalk_dir=crstk_dir_A)
-crstlk_est.range_binning(crstlk_dir=crstk_dir_A, out_dir=range_corrected_A, range_direction=1)
+#
+# correl.logicboard(cov_dir=cov_out_q, out_img=logic_Q, threshold=0.3)
+# crstlk_est.quegan(cov_dir=cov_out_q, crosstalk_dir=crstk_dir_Q, logic_img=logic_Q)
+# crstlk_est.range_binning(crstlk_dir=crstk_dir_Q, out_dir=range_corrected_Q, range_direction=1)
+#
+#
+# me.estimate_mne(
+#     u_img=range_corrected_Q + "u",
+#     v_img=range_corrected_Q + "v",
+#     w_img=range_corrected_Q + "w",
+#     z_img=range_corrected_Q + "z",
+#     mne_img=quegan_dir + "MNE"
+# )
 
 
-me.estimate_mne(
-    u_img=range_corrected_A + "u",
-    v_img=range_corrected_A + "v",
-    w_img=range_corrected_A + "w",
-    z_img=range_corrected_A + "z",
-    mne_img=ansrth_dir + "MNE"
+# # Ainsworth
+#
+# cov.compute_covar(
+#     hh_img=hh_a,
+#     hv_img=hv_a,
+#     vh_img=vh_a,
+#     vv_img=vv_a,
+#     out_dir=cov_out_a,
+#     winxsize=3,
+#     winysize=3
+# )
+
+# crstlk_est.ainsworth(cov_dir=cov_out_a, crosstalk_dir=crstk_dir_A)
+# crstlk_est.range_binning(crstlk_dir=crstk_dir_A, out_dir=range_corrected_A, range_direction=1)
+#
+#
+# me.estimate_mne(
+#     u_img=range_corrected_A + "u",
+#     v_img=range_corrected_A + "v",
+#     w_img=range_corrected_A + "w",
+#     z_img=range_corrected_A + "z",
+#     mne_img=ansrth_dir + "MNE"
+# )
+
+# snr_A = snrc.estimate_SNR(c1_img=crosscal_out_q + "HV_Cal", c2_img=crosscal_out_q + "VH_Cal")
+# snr_A = snrc.estimate_SNR(c1_img=hv_sub, c2_img=vh_sub)
+
+# poa.estimate_poa_shift(
+#     hh_img=crosscal_out_a+"HV_Cal",
+#     hv_img=crosscal_out_a+"HV_Cal",
+#     vv_img=crosscal_out_a+"VV_Cal",
+#     orientation_img=crosscal_out_a+"POA"
+# )
+
+poa.poa_shift_correction(
+    hh_img=crosscal_out_a+"HV_Cal",
+    hv_img=crosscal_out_a+"HV_Cal",
+    vh_img=crosscal_out_a+"HV_Cal",
+    vv_img=crosscal_out_a+"VV_Cal",
+    poa_img=crosscal_out_a+"POA",
+    out_dir=crosscal_out_a+"POA_Corrected/"
 )
