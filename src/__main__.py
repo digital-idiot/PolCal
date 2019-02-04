@@ -9,8 +9,8 @@ import src.error.SNR_estimation as snrc
 import testing.dump as td
 import src.POA.poa_shift as poa
 
-# data_dir = "/media/abhisek/Store/Storage/UAVSAR_PBand_ENVI/"
-data_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/"
+# data_dir = "/media/Store/Storage/UAVSAR_PBand_ENVI/"
+data_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/"
 
 # hh_f = data_dir + "HH"
 hh_f = data_dir + "hh.slc"
@@ -64,8 +64,8 @@ range_bin_out_a = data_dir + "Processed/Out/Range_Corrected_A/"
 # )
 
 # radio_est.radio_xpol(
-#     hv_img="/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/HV_X",
-#     vh_img="/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/VH_X",
+#     hv_img="/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/HV_X",
+#     vh_img="/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/VH_X",
 #     outfile=out_f2
 # )
 
@@ -146,6 +146,24 @@ a_cap_img = data_dir + "Processed/Out/A"
 #     error_map=err_img
 # )
 
+# poa.estimate_poa_shift(
+#     hh_img=crosscal_out_a+"HV_Cal",
+#     hv_img=crosscal_out_a+"HV_Cal",
+#     vv_img=crosscal_out_a+"VV_Cal",
+#     orientation_img=crosscal_out_a+"POA"
+# )
+
+
+poa.poa_shift_correction(
+    hh_img=crosscal_out_a+"HV_Cal",
+    hv_img=crosscal_out_a+"HV_Cal",
+    vh_img=crosscal_out_a+"HV_Cal",
+    vv_img=crosscal_out_a+"VV_Cal",
+    poa_img=crosscal_out_a+"POA",
+    out_dir=crosscal_out_a+"POA_Corrected/"
+)
+
+
 # me.estimate_mne(
 #     u_img=range_bin_out_a+"u",
 #     v_img=range_bin_out_a+"v",
@@ -165,8 +183,8 @@ a_cap_img = data_dir + "Processed/Out/A"
 
 ########### Estimation of Posterior MNE ##################
 
-quegan_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_Q/"
-ansrth_dir = "/media/abhisek/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_A/"
+quegan_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_Q/"
+ansrth_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_A/"
 
 cov_out_q = quegan_dir + "COV_Q/"
 cov_out_a = ansrth_dir + "COV_A/"
@@ -248,11 +266,11 @@ logic_Q = quegan_dir + "Logic_Board_Q/Logic_Board"
 #     orientation_img=crosscal_out_a+"POA"
 # )
 
-poa.poa_shift_correction(
-    hh_img=crosscal_out_a+"HV_Cal",
-    hv_img=crosscal_out_a+"HV_Cal",
-    vh_img=crosscal_out_a+"HV_Cal",
-    vv_img=crosscal_out_a+"VV_Cal",
-    poa_img=crosscal_out_a+"POA",
-    out_dir=crosscal_out_a+"POA_Corrected/"
-)
+# poa.poa_shift_correction(
+#     hh_img=crosscal_out_a+"HV_Cal",
+#     hv_img=crosscal_out_a+"HV_Cal",
+#     vh_img=crosscal_out_a+"HV_Cal",
+#     vv_img=crosscal_out_a+"VV_Cal",
+#     poa_img=crosscal_out_a+"POA",
+#     out_dir=crosscal_out_a+"POA_Corrected/"
+# )
