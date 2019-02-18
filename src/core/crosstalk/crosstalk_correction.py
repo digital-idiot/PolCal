@@ -89,37 +89,39 @@ def apply_correction(
 
                     if alpha != 0 and denom != 0:
 
-                        constant = 1 / denom
-                        c_mat = np.array(
+                        ralpha = alpha ** 0.5
+                        ralpha_inv = 1 / ralpha
+                        pre_const = 1 / denom
+                        correction_mat = pre_const * np.array(
                             [
                                 [
-                                    (1+0j),
-                                    (-1 * w),
-                                    (-1 * v),
-                                    (v * w)
+                                    (1 + 0j),
+                                    -w,
+                                    -v,
+                                    v * w
                                 ],
                                 [
-                                    ((-1 * u) / (alpha ** 0.5)),
-                                    (1 / (alpha ** 0.5)),
-                                    ((u * v) / (alpha ** 0.5)),
-                                    ((-1 * v) / (alpha ** 0.5))
+                                    -u * ralpha_inv,
+                                    ralpha_inv,
+                                    u * v * ralpha_inv,
+                                    -v * ralpha_inv
                                 ],
                                 [
-                                    ((-1 * z) / (alpha ** 0.5)),
-                                    (w * z * (alpha ** 0.5)),
-                                    (alpha ** 0.5),
-                                    (-1 * w * (alpha ** 0.5))
+                                    -z * ralpha,
+                                    w * z * ralpha,
+                                    ralpha,
+                                    -w * ralpha
                                 ],
                                 [
-                                    (u * z),
-                                    (-1 * z),
-                                    (-1 * u),
+                                    u * z,
+                                    -z,
+                                    -u,
                                     (1 + 0j)
                                 ]
                             ]
                         )
 
-                        correction_mat = constant * c_mat
+                        # correction_mat = const * c_mat
 
                         observed_mat = np.array(
                             [

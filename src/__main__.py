@@ -9,268 +9,193 @@ import src.error.SNR_estimation as snrc
 import testing.dump as td
 import src.POA.poa_shift as poa
 
-# data_dir = "/media/Store/Storage/UAVSAR_PBand_ENVI/"
-data_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/"
 
-# hh_f = data_dir + "HH"
-hh_f = data_dir + "hh.slc"
-# hv_f = data_dir + "HV"
-hv_f = data_dir + "hv.slc"
-# vh_f = data_dir + "VH"
-vh_f = data_dir + "vh.slc"
-# vv_f = data_dir + "VV"
-vv_f = data_dir + "vv.slc"
-# inc_f = data_dir + "INC_ANGLE"
-inc_f = data_dir + "Inc_Angle"
-cr_f = data_dir + "CR_Info.csv"
-# out_f1 = data_dir + "Out/copol_cal.csv"
-out_f1 = data_dir + "Processed/Out/copol_cal.csv"
-# out_f2 = data_dir + "Out/xpol_cal.csv"
-out_f2 = data_dir + "Processed/Out/xpol_cal.csv"
-abs_f = data_dir + "Processed/Out/abs_coeffs.csv"
-php_f = data_dir + "Processed/Out/php_coeffs.csv"
-abs_out = data_dir + "Processed/Out/A"
-php_img = data_dir + "Processed/Out/Phi_Plus"
+root_dir = "/media/Cellar/Thesis_Output/"
+main_input = root_dir + "/Subset_Main/"
+xpol_input = root_dir + "Subset_Xpol/"
 
-inc_image = data_dir + "Processed/Subset/Incidence_Angle_Radian"
+radio_dir = root_dir + "Radio_Cal/"
 
-cov_out = data_dir + "Processed/Out/COVARIANCE/"
+cov_dir_b = root_dir + "Covariance.Before/"
 
-hh_out = data_dir + "Processed/Out/Radio_Cal/HH"
-hv_out = data_dir + "Processed/Out/Radio_Cal/HV"
-vh_out = data_dir + "Processed/Out/Radio_Cal/VH"
-vv_out = data_dir + "Processed/Out/Radio_Cal/VV"
+crstlk_q_b = root_dir + "Crosstalk_Q.Before/"
+crstlk_q_a = root_dir + "Crosstalk_Q.After/"
+crstlk_a_b = root_dir + "Crosstalk_A.Before/"
+crstlk_a_a = root_dir + "Crosstalk_A.After/"
+crstlk_m_b = root_dir + "Crosstalk_M.Before/"
+crstlk_m_a = root_dir + "Crosstalk_M.After/"
 
-logic_out = data_dir + "Processed/Out/Logic_Board/Logic_Board"
-ainsworth_quality = data_dir + "Processed/Out/Logic_Board/Data_Quality_A"
-crstlk_dir_q = data_dir + "Processed/Out/Crosstalk_Q/"
-crstlk_dir_a = data_dir + "Processed/Out/Crosstalk_A/"
+logic_out_qb = crstlk_q_b + "Logic_Board"
+logic_out_qa = crstlk_q_a + "Logic_Board"
 
-crosscal_out_q = data_dir + "Processed/Out/Cal_Out_Q/"
-crosscal_out_a = data_dir + "Processed/Out/Cal_Out_A/"
+crstlk_qb_rc = root_dir + "Crosstalk_Q_RC.Before/"
+crstlk_qa_rc = root_dir + "Crosstalk_Q_RC.After/"
+crstlk_ab_rc = root_dir + "Crosstalk_A_RC.Before/"
+crstlk_aa_rc = root_dir + "Crosstalk_A_RC.After/"
+crstlk_mb_rc = root_dir + "Crosstalk_M_RC.Before/"
+crstlk_ma_rc = root_dir + "Crosstalk_M_RC.After/"
 
-err_img = data_dir + "Processed/Out/Error/Error_Map"
+out_q = root_dir + "CalOut_Q/"
+out_a = root_dir + "CalOut_A/"
+out_m = root_dir + "CalOut_M/"
 
-range_bin_out_q = data_dir + "Processed/Out/Range_Corrected_Q/"
-range_bin_out_a = data_dir + "Processed/Out/Range_Corrected_A/"
+err_q = out_q + "Error"
+err_a = out_a + "Error"
+err_m = out_m + "Error"
 
-# radio_est.radio_copol(
-#     hh_img=hh_f,
-#     vv_img=vv_f,
-#     inc_img=inc_f,
-#     wave_length=0.2379,
-#     cr_info=cr_f,
-#     out_file=out_f1
+hh_radio = radio_dir + "HH"
+hv_radio = radio_dir + "HV"
+vh_radio = radio_dir + "VH"
+vv_radio = radio_dir + "VV"
+
+cov_dir_q = root_dir + "Covariance_Q/"
+cov_dir_a = root_dir + "Covariance_A/"
+
+hh_qcal = out_q + "HH_Cal"
+hv_qcal = out_q + "HV_Cal"
+vh_qcal = out_q + "VH_Cal"
+vv_qcal = out_q + "VV_Cal"
+
+hh_acal = out_a + "HH_Cal"
+hv_acal = out_a + "HV_Cal"
+vh_acal = out_a + "VH_Cal"
+vv_acal = out_a + "VV_Cal"
+
+hh_mcal = out_m + "HH_Cal"
+hv_mcal = out_m + "HV_Cal"
+vh_mcal = out_m + "VH_Cal"
+vv_mcal = out_m + "VV_Cal"
+
+u_qb = crstlk_qb_rc + "u"
+v_qb = crstlk_qb_rc + "v"
+w_qb = crstlk_qb_rc + "w"
+z_qb = crstlk_qb_rc + "z"
+
+u_qa = crstlk_qa_rc + "u"
+v_qa = crstlk_qa_rc + "v"
+w_qa = crstlk_qa_rc + "w"
+z_qa = crstlk_qa_rc + "z"
+
+u_ab = crstlk_ab_rc + "u"
+v_ab = crstlk_ab_rc + "v"
+w_ab = crstlk_ab_rc + "w"
+z_ab = crstlk_ab_rc + "z"
+
+u_aa = crstlk_aa_rc + "u"
+v_aa = crstlk_aa_rc + "v"
+w_aa = crstlk_aa_rc + "w"
+z_aa = crstlk_aa_rc + "z"
+
+u_mb = crstlk_mb_rc + "u"
+v_mb = crstlk_mb_rc + "v"
+w_mb = crstlk_mb_rc + "w"
+z_mb = crstlk_mb_rc + "z"
+
+u_ma = crstlk_ma_rc + "u"
+v_ma = crstlk_ma_rc + "v"
+w_ma = crstlk_ma_rc + "w"
+z_ma = crstlk_ma_rc + "z"
+
+# correl.logicboard(cov_dir=cov_dir_b, out_img=logic_out_qb, threshold=0.3)
+# crstlk_est.quegan(cov_dir=cov_dir_b, crosstalk_dir=crstlk_q_b, logic_img=logic_out_qb)
+# crstlk_est.range_binning(crstlk_dir=crstlk_q_b, out_dir=crstlk_qb_rc, range_direction=1)
+
+# crstlk_cor.apply_correction(
+#     hh_img=hh_radio,
+#     hv_img=hv_radio,
+#     vh_img=vh_radio,
+#     vv_img=vv_radio,
+#     params_dir=crstlk_qb_rc,
+#     out_dir=out_q,
+#     error_map=err_q
 # )
 
-# radio_est.radio_xpol(
-#     hv_img="/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/HV_X",
-#     vh_img="/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Xpol_Subset/VH_X",
-#     outfile=out_f2
+# crstlk_est.ainsworth(cov_dir=cov_dir_b, crosstalk_dir=crstlk_a_b)
+# crstlk_est.range_binning(crstlk_dir=crstlk_a_b, out_dir=crstlk_ab_rc, range_direction=1)
+
+# crstlk_cor.apply_correction(
+#     hh_img=hh_radio,
+#     hv_img=hv_radio,
+#     vh_img=vh_radio,
+#     vv_img=vv_radio,
+#     params_dir=crstlk_ab_rc,
+#     out_dir=out_a,
+#     error_map=err_a
 # )
-
-# radio_est.fit_radio_params(out_f1, abs_file=abs_f, php_file=php_f, a_deg=1, phi_deg=2)
-
-# radio_est.write_copol_params(
-#     abs_coeffs=abs_f,
-#     abs_img_out=abs_out,
-#     inc_img=inc_image,
-#     phi_coeffs=php_f,
-#     php_img_out=php_img,
-# )
-
-root_sub = data_dir + "Processed/Subset/"
-hh_sub = root_sub + "HH"
-hv_sub = root_sub + "HV"
-vh_sub = root_sub + "VH"
-vv_sub = root_sub + "VV"
-a_cap_img = data_dir + "Processed/Out/A"
-
-# rcal.radiometric_cal(
-#     hh_img=hh_sub,
-#     hv_img=hv_sub,
-#     vh_img=vh_sub,
-#     vv_img=vv_sub,
-#     php_img=php_img,
-#     copol_info=out_f1,
-#     xpol_info=out_f2,
-#     hh_out=hh_out,
-#     hv_out=hv_out,
-#     vh_out=vh_out,
-#     vv_out=vv_out,
-#     abs_img=a_cap_img
-# )
-
 
 # cov.compute_covar(
-#     hh_img=hh_out,
-#     hv_img=hv_out,
-#     vh_img=vh_out,
-#     vv_img=vv_out,
-#     out_dir=cov_out,
+#     hh_img=hh_qcal,
+#     hv_img=hv_qcal,
+#     vh_img=vh_qcal,
+#     vv_img=vv_qcal,
+#     out_dir=cov_dir_q,
 #     winxsize=3,
 #     winysize=3
 # )
 
-# correl.logicboard(cov_dir=cov_out, out_img=logic_out, threshold=0.3)
+# correl.logicboard(cov_dir=cov_dir_q, out_img=logic_out_qa, threshold=0.3)
+# crstlk_est.quegan(cov_dir=cov_dir_q, crosstalk_dir=crstlk_q_a, logic_img=logic_out_qa)
+# crstlk_est.range_binning(crstlk_dir=crstlk_q_a, out_dir=crstlk_qa_rc, range_direction=1)
 
-# crstlk_est.quegan(cov_dir=cov_out, crosstalk_dir=crstlk_dir_q, logic_img=logic_out)
+# cov.compute_covar(
+#     hh_img=hh_acal,
+#     hv_img=hv_acal,
+#     vh_img=vh_acal,
+#     vv_img=vv_acal,
+#     out_dir=cov_dir_a,
+#     winxsize=3,
+#     winysize=3
+# )
+
+# crstlk_est.ainsworth(cov_dir=cov_dir_a, crosstalk_dir=crstlk_a_a)
+# crstlk_est.range_binning(crstlk_dir=crstlk_a_a, out_dir=crstlk_aa_rc, range_direction=1)
+
+# me.estimate_mne(
+#     u_img=u_qb,
+#     v_img=v_qb,
+#     w_img=w_qb,
+#     z_img=z_qb,
+#     mne_img=crstlk_qb_rc + "MNE"
+# )
+
+# me.estimate_mne(
+#     u_img=u_ab,
+#     v_img=v_ab,
+#     w_img=w_ab,
+#     z_img=z_ab,
+#     mne_img=crstlk_ab_rc + "MNE"
+# )
+
+# me.estimate_mne(
+#     u_img=u_qa,
+#     v_img=v_qa,
+#     w_img=w_qa,
+#     z_img=z_qa,
+#     mne_img=crstlk_qa_rc + "MNE"
+# )
+
+# me.estimate_mne(
+#     u_img=u_aa,
+#     v_img=v_aa,
+#     w_img=w_aa,
+#     z_img=z_aa,
+#     mne_img=crstlk_aa_rc + "MNE"
+# )
+
+# crstlk_est.ainsworth_mod(cov_dir=cov_dir_b, crosstalk_dir=crstlk_m_b, xoffset=1000, yoffset=1000)
+# crstlk_est.range_binning(crstlk_dir=crstlk_m_b, out_dir=crstlk_mb_rc, range_direction=1)
 #
-# crstlk_est.range_binning(crstlk_dir=crstlk_dir_q, out_dir=range_bin_out_q, range_direction=1)
-
 # crstlk_cor.apply_correction(
-#     hh_img=hh_out,
-#     hv_img=hv_out,
-#     vh_img=vh_out,
-#     vv_img=vv_out,
-#     params_dir=range_bin_out,
-#     out_dir=crosscal_out_q,
-#     error_map=err_img
+#     hh_img=hh_radio,
+#     hv_img=hv_radio,
+#     vh_img=vh_radio,
+#     vv_img=vv_radio,
+#     params_dir=crstlk_mb_rc,
+#     out_dir=out_m,
+#     error_map=err_m
 # )
 
-# td.dump_data()
-
-# crstlk_est.ainsworth(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a)
-
-# crstlk_est.ainsworth_orig(cov_dir=cov_out, crosstalk_dir=crstlk_dir_a, data_quality_img=ainsworth_quality)
-
-# crstlk_est.range_binning(crstlk_dir=crstlk_dir_a, out_dir=range_bin_out_a, range_direction=1)
-
-# crstlk_cor.apply_correction(
-#     hh_img=hh_out,
-#     hv_img=hv_out,
-#     vh_img=vh_out,
-#     vv_img=vv_out,
-#     params_dir=range_bin_out_a,
-#     out_dir=crosscal_out_a,
-#     error_map=err_img
-# )
-
-# poa.estimate_poa_shift(
-#     hh_img=crosscal_out_a+"HV_Cal",
-#     hv_img=crosscal_out_a+"HV_Cal",
-#     vv_img=crosscal_out_a+"VV_Cal",
-#     orientation_img=crosscal_out_a+"POA"
-# )
-
-
-poa.poa_shift_correction(
-    hh_img=crosscal_out_a+"HV_Cal",
-    hv_img=crosscal_out_a+"HV_Cal",
-    vh_img=crosscal_out_a+"HV_Cal",
-    vv_img=crosscal_out_a+"VV_Cal",
-    poa_img=crosscal_out_a+"POA",
-    out_dir=crosscal_out_a+"POA_Corrected/"
+snrc.estimate_SNR(
+    c1_img=vh_radio,
+    c2_img=hh_radio,
 )
-
-
-# me.estimate_mne(
-#     u_img=range_bin_out_a+"u",
-#     v_img=range_bin_out_a+"v",
-#     w_img=range_bin_out_a+"w",
-#     z_img=range_bin_out_a+"z",
-#     mne_img=range_bin_out_a+"MNE"
-# )
-
-# me.estimate_mne(
-#     u_img=range_bin_out_q+"u",
-#     v_img=range_bin_out_q+"v",
-#     w_img=range_bin_out_q+"w",
-#     z_img=range_bin_out_q+"z",
-#     mne_img=range_bin_out_q+"MNE_crstlk"
-# )
-
-
-########### Estimation of Posterior MNE ##################
-
-quegan_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_Q/"
-ansrth_dir = "/media/Store/Storage/UAVSAR_LBand/L-Band_2_Uncalibrated/Processed/Out/Cal_Out_A/"
-
-cov_out_q = quegan_dir + "COV_Q/"
-cov_out_a = ansrth_dir + "COV_A/"
-hh_q = quegan_dir + "HH_Cal"
-hv_q = quegan_dir + "HV_Cal"
-vh_q = quegan_dir + "VH_Cal"
-vv_q = quegan_dir + "VV_Cal"
-
-hh_a = ansrth_dir + "HH_Cal"
-hv_a = ansrth_dir + "HV_Cal"
-vh_a = ansrth_dir + "VH_Cal"
-vv_a = ansrth_dir + "VV_Cal"
-
-crstk_dir_Q = quegan_dir + "Crosstalk_Params_Q/"
-crstk_dir_A = ansrth_dir + "Crosstalk_Params_A/"
-
-range_corrected_A = ansrth_dir + "Range_Corrected_Params_A/"
-range_corrected_Q = quegan_dir + "Range_Corrected_Params_Q/"
-
-logic_Q = quegan_dir + "Logic_Board_Q/Logic_Board"
-
-# Quegan
-
-# cov.compute_covar(
-#     hh_img=hh_q,
-#     hv_img=hv_q,
-#     vh_img=vh_q,
-#     vv_img=vv_q,
-#     out_dir=cov_out_q,
-#     winxsize=3,
-#     winysize=3
-# )
-#
-# correl.logicboard(cov_dir=cov_out_q, out_img=logic_Q, threshold=0.3)
-# crstlk_est.quegan(cov_dir=cov_out_q, crosstalk_dir=crstk_dir_Q, logic_img=logic_Q)
-# crstlk_est.range_binning(crstlk_dir=crstk_dir_Q, out_dir=range_corrected_Q, range_direction=1)
-#
-#
-# me.estimate_mne(
-#     u_img=range_corrected_Q + "u",
-#     v_img=range_corrected_Q + "v",
-#     w_img=range_corrected_Q + "w",
-#     z_img=range_corrected_Q + "z",
-#     mne_img=quegan_dir + "MNE"
-# )
-
-
-# # Ainsworth
-#
-# cov.compute_covar(
-#     hh_img=hh_a,
-#     hv_img=hv_a,
-#     vh_img=vh_a,
-#     vv_img=vv_a,
-#     out_dir=cov_out_a,
-#     winxsize=3,
-#     winysize=3
-# )
-
-# crstlk_est.ainsworth(cov_dir=cov_out_a, crosstalk_dir=crstk_dir_A)
-# crstlk_est.range_binning(crstlk_dir=crstk_dir_A, out_dir=range_corrected_A, range_direction=1)
-#
-#
-# me.estimate_mne(
-#     u_img=range_corrected_A + "u",
-#     v_img=range_corrected_A + "v",
-#     w_img=range_corrected_A + "w",
-#     z_img=range_corrected_A + "z",
-#     mne_img=ansrth_dir + "MNE"
-# )
-
-# snr_A = snrc.estimate_SNR(c1_img=crosscal_out_q + "HV_Cal", c2_img=crosscal_out_q + "VH_Cal")
-# snr_A = snrc.estimate_SNR(c1_img=hv_sub, c2_img=vh_sub)
-
-# poa.estimate_poa_shift(
-#     hh_img=crosscal_out_a+"HV_Cal",
-#     hv_img=crosscal_out_a+"HV_Cal",
-#     vv_img=crosscal_out_a+"VV_Cal",
-#     orientation_img=crosscal_out_a+"POA"
-# )
-
-# poa.poa_shift_correction(
-#     hh_img=crosscal_out_a+"HV_Cal",
-#     hv_img=crosscal_out_a+"HV_Cal",
-#     vh_img=crosscal_out_a+"HV_Cal",
-#     vv_img=crosscal_out_a+"VV_Cal",
-#     poa_img=crosscal_out_a+"POA",
-#     out_dir=crosscal_out_a+"POA_Corrected/"
-# )

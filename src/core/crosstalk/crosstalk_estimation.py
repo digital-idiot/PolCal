@@ -1,6 +1,8 @@
 import gdal
 import gdalconst
 import numpy as np
+import timeit
+import pandas as pd
 
 
 def quegan(cov_dir, crosstalk_dir, logic_img, m=1.0, x_start=0, y_start=0, xoffset=None, yoffset=None):
@@ -476,6 +478,371 @@ def ainsworth(
     return 0
 
 
+def get_residual(u, v, w, z, alpha, c_cap, epsilon):
+
+    u_i = v_i = w_i = z_i = alpha_i = np.nan
+    ralpha = alpha ** 0.5
+    ralpha_inv = 1 / ralpha
+    sigma = (1 / (((u * w) - 1) * ((v * z) - 1))) * np.array(
+        [
+            [
+                (1 + 0j),
+                -w,
+                -v,
+                v * w
+            ],
+            [
+                -u * ralpha_inv,
+                ralpha_inv,
+                u * v * ralpha_inv,
+                -v * ralpha_inv
+            ],
+            [
+                -z * ralpha,
+                w * z * ralpha,
+                ralpha,
+                -w * ralpha
+            ],
+            [
+                u * z,
+                -z,
+                -u,
+                (1 + 0j)
+            ]
+        ]
+    )
+
+    sigma_dagger = np.transpose(np.conj(sigma))
+    c_iter = np.matmul(sigma, np.matmul(c_cap, sigma_dagger))
+    c11_i = c_iter[0][0]
+    # c12_i = c_iter[0][1]
+    # c13_i = c_cap[0][2]
+    c14_i = c_iter[0][3]
+    c21_i = c_iter[1][0]
+    c22_i = c_iter[1][1]
+    c23_i = c_iter[1][2]
+    c24_i = c_iter[1][3]
+    c31_i = c_iter[2][0]
+    c32_i = c_iter[2][1]
+    c33_i = c_iter[2][2]
+    c34_i = c_iter[2][3]
+    c41_i = c_iter[3][0]
+    # c42_i = c_iter[3][1]
+    # c43_i = c_iter[3][2]
+    c44_i = c_iter[3][3]
+
+    a_cap = 0.5 * (c31_i + c21_i)
+    b_cap = 0.5 * (c34_i + c24_i)
+
+    # noinspection PyTypeChecker
+    if (not np.isclose(c23_i, 0j, atol=epsilon)) and (not np.isclose(c33_i, 0j, atol=epsilon)):
+        t1_i = c23_i / np.abs(c23_i)
+        t2_i = (np.abs(c22_i / c33_i)) ** 0.5
+        if t2_i > epsilon and (1 / t2_i) > epsilon:
+            alpha_i = t1_i * t2_i
+
+            zeta = np.array(
+                [
+                    [0, 0, c41_i, c11_i],
+                    [c11_i, c41_i, 0, 0],
+                    [0, 0, c44_i, c14_i],
+                    [c14_i, c44_i, 0, 0]
+                ]
+            )
+
+            tau = np.array(
+                [
+                    [0, c33_i, c32_i, 0],
+                    [0, c23_i, c22_i, 0],
+                    [c33_i, 0, 0, c32_i],
+                    [c23_i, 0, 0, c22_i]
+                ]
+            )
+
+            chi = np.array(
+                [
+                    [c31_i - a_cap],
+                    [c21_i - a_cap],
+                    [c34_i - b_cap],
+                    [c24_i - b_cap]
+                ]
+            )
+
+            rchi = chi.real
+            ichi = chi.imag
+
+            zpt = zeta + tau
+            zmt = zeta - tau
+
+            rzpt = zpt.real
+            izpt = zpt.imag
+
+            rzmt = zmt.real
+            izmt = zmt.imag
+
+            try:
+                rzmt_inv = np.linalg.inv(rzmt)
+                izmt_inv = np.linalg.inv(izmt)
+
+                t3 = np.linalg.inv(np.matmul(izmt_inv, rzpt) + np.matmul(rzmt_inv, izpt))
+                t4 = np.matmul(izmt_inv, rchi) + np.matmul(rzmt_inv, ichi)
+
+                rdelta = np.matmul(t3, t4)
+                idelta = np.matmul(rzmt_inv, (ichi - np.matmul(izpt, rdelta)))
+                delta = rdelta + (1j * idelta)
+
+                u_i = delta[0][0]
+                v_i = delta[1][0]
+                w_i = delta[2][0]
+                z_i = delta[3][0]
+            except np.linalg.linalg.LinAlgError as inv_err:
+                print(inv_err)
+                u_i = v_i = w_i = z_i = alpha_i = np.nan
+                return u_i, v_i, w_i, z_i, alpha_i
+
+    return u_i, v_i, w_i, z_i, alpha_i
+
+
+def ainsworth_mod(
+        cov_dir,
+        crosstalk_dir,
+        max_iter=16,
+        epsilon=1e-8,
+        x_start=0,
+        y_start=0,
+        xoffset=None,
+        yoffset=None,
+        meta_file=None
+):
+
+    c11_f = cov_dir + "C11"
+    c12_f = cov_dir + "C12"
+    c13_f = cov_dir + "C13"
+    c14_f = cov_dir + "C14"
+    c21_f = cov_dir + "C21"
+    c22_f = cov_dir + "C22"
+    c23_f = cov_dir + "C23"
+    c24_f = cov_dir + "C24"
+    c31_f = cov_dir + "C31"
+    c32_f = cov_dir + "C32"
+    c33_f = cov_dir + "C33"
+    c34_f = cov_dir + "C34"
+    c41_f = cov_dir + "C41"
+    c42_f = cov_dir + "C42"
+    c43_f = cov_dir + "C43"
+    c44_f = cov_dir + "C44"
+
+    u_file = crosstalk_dir + "u"
+    v_file = crosstalk_dir + "v"
+    w_file = crosstalk_dir + "w"
+    z_file = crosstalk_dir + "z"
+    alpha_file = crosstalk_dir + "alpha"
+
+    c11_f = gdal.Open(c11_f)
+    c12_f = gdal.Open(c12_f)
+    c13_f = gdal.Open(c13_f)
+    c14_f = gdal.Open(c14_f)
+    c21_f = gdal.Open(c21_f)
+    c22_f = gdal.Open(c22_f)
+    c23_f = gdal.Open(c23_f)
+    c24_f = gdal.Open(c24_f)
+    c31_f = gdal.Open(c31_f)
+    c32_f = gdal.Open(c32_f)
+    c33_f = gdal.Open(c33_f)
+    c34_f = gdal.Open(c34_f)
+    c41_f = gdal.Open(c41_f)
+    c42_f = gdal.Open(c42_f)
+    c43_f = gdal.Open(c43_f)
+    c44_f = gdal.Open(c44_f)
+
+    c11b = c11_f.GetRasterBand(1)
+    c12b = c12_f.GetRasterBand(1)
+    c13b = c13_f.GetRasterBand(1)
+    c14b = c14_f.GetRasterBand(1)
+    c21b = c21_f.GetRasterBand(1)
+    c22b = c22_f.GetRasterBand(1)
+    c23b = c23_f.GetRasterBand(1)
+    c24b = c24_f.GetRasterBand(1)
+    c31b = c31_f.GetRasterBand(1)
+    c32b = c32_f.GetRasterBand(1)
+    c33b = c33_f.GetRasterBand(1)
+    c34b = c34_f.GetRasterBand(1)
+    c41b = c41_f.GetRasterBand(1)
+    c42b = c42_f.GetRasterBand(1)
+    c43b = c43_f.GetRasterBand(1)
+    c44b = c44_f.GetRasterBand(1)
+
+    if meta_file is None:
+        meta_file = crosstalk_dir + "Performance.csv"
+
+    if xoffset is None:
+        xoffset = c11b.XSize
+
+    if yoffset is None:
+        yoffset = c11b.YSize
+
+    driver = gdal.GetDriverByName("ENVI")
+    u_f = driver.Create(u_file, xoffset, yoffset, 1, gdalconst.GDT_CFloat32)
+    u_band = u_f.GetRasterBand(1)
+
+    v_f = driver.Create(v_file, xoffset, yoffset, 1, gdalconst.GDT_CFloat32)
+    v_band = v_f.GetRasterBand(1)
+
+    w_f = driver.Create(w_file, xoffset, yoffset, 1, gdalconst.GDT_CFloat32)
+    w_band = w_f.GetRasterBand(1)
+
+    z_f = driver.Create(z_file, xoffset, yoffset, 1, gdalconst.GDT_CFloat32)
+    z_band = z_f.GetRasterBand(1)
+
+    alpha_f = driver.Create(alpha_file, xoffset, yoffset, 1, gdalconst.GDT_CFloat32)
+    alpha_band = alpha_f.GetRasterBand(1)
+
+    df = pd.DataFrame(columns=['idx_i', 'idx_j', 'Iterations', 'Duration'])
+
+    for i in range(xoffset):
+        for j in range(yoffset):
+            r = x_start + i
+            c = y_start + j
+
+            c11 = c11b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c12 = c12b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c13 = c13b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c14 = c14b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c21 = c21b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c22 = c22b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c23 = c23b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c24 = c24b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c31 = c31b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c32 = c32b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c33 = c33b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c34 = c34b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c41 = c41b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c42 = c42b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c43 = c43b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+            c44 = c44b.ReadAsArray(xoff=r, yoff=c, win_xsize=1, win_ysize=1)[0][0]
+
+            c_cap = np.array(
+                [
+                    [c11, c12, c13, c14],
+                    [c21, c22, c23, c24],
+                    [c31, c32, c33, c34],
+                    [c41, c42, c43, c44]
+                ]
+            )
+
+            start_time = timeit.default_timer()
+
+            gamma = np.inf
+
+            iter_count = 0
+
+            u = v = w = z = alpha = np.nan
+
+            delta = ((c11 * c44) - (np.abs(c14) ** 2))
+
+            if delta != 0:
+                u_q = ((c44 * c21) - (c41 * c24)) / delta
+                v_q = ((c11 * c24) - (c21 * c14)) / delta
+                w_q = ((c11 * c34) - (c31 * c14)) / delta
+                z_q = ((c44 * c31) - (c41 * c34)) / delta
+
+                x = c32 - (z_q * c12) - (w_q * c42)
+                alpha_1 = (c22 - (u_q * c12) - (v_q * c42)) / x
+                alpha_2 = np.conj(x) / (c33 - (np.conj(z_q) * c31) - (np.conj(w_q) * c34))
+
+                t1 = np.abs(alpha_1 * alpha_2) - 1
+                t2 = (t1 ** 2) + (4 * 1 * (np.abs(alpha_2) ** 2))
+                t3 = 2 * np.abs(alpha_2)
+                t4 = t1 + (t2 ** 0.5)
+                alpha_q = (t4 / t3) * (alpha_1 / np.abs(alpha_1))
+
+                u_qr, v_qr, w_qr, z_qr, alpha_qr = get_residual(u_q, v_q, w_q, z_q, alpha_q, c_cap, epsilon)
+
+                u = u_q
+                v = v_q
+                w = w_q
+                z = z_q
+                alpha = alpha_q
+
+                gamma = np.max(np.abs([u_qr, v_qr, w_qr, z_qr]))
+
+            if gamma > epsilon:
+
+                t1 = c23 / np.abs(c23)
+                t2 = (np.abs(c22 / c33)) ** 0.5
+                alpha_a = t1 * t2
+
+                u_a = v_a = w_a = z_a = 0j
+
+                while gamma > epsilon and iter_count < max_iter and alpha_a > epsilon:
+
+                    iter_count += 1
+
+                    beta1 = c_cap[1][1]
+                    beta2 = c_cap[2][2]
+
+                    eta1 = beta1 - c_cap[2][1]
+                    eta2 = beta2 - c_cap[1][2]
+
+                    indicator1 = np.inf
+                    indicator2 = np.inf
+
+                    if beta1 != 0j:
+                        indicator1 = np.abs(eta1 / beta1)
+
+                    if beta2 != 0j:
+                        indicator2 = np.abs(eta2 / beta2)
+
+                    if (indicator1 <= 1) or (indicator2 <= 1):
+                        u_ar, v_ar, w_ar, z_ar, alpha_ar = get_residual(u_a, v_a, w_a, z_a, alpha_a, c_cap, epsilon)
+
+                        if any(np.isnan([u_ar, v_ar, w_ar, z_ar, alpha_ar])):
+                            u_a = v_a = w_a = z_a = np.nan
+                            break
+
+                        u_a += u_ar
+                        v_a += v_ar
+                        w_a += w_ar
+                        z_a += z_ar
+
+                        gamma = np.max(np.abs([u_ar, v_ar, w_ar, z_ar]))
+                    else:
+                        u_a = v_a = w_a = z_a = alpha_a = np.nan
+                        break
+
+
+                u = u_a
+                v = v_a
+                w = w_a
+                z = z_a
+                alpha = alpha_a
+
+            u = np.array([[u]])
+            v = np.array([[v]])
+            w = np.array([[w]])
+            z = np.array([[z]])
+            alpha = np.array([[alpha]])
+
+            u_band.WriteArray(u, xoff=r, yoff=c)
+            v_band.WriteArray(v, xoff=r, yoff=c)
+            w_band.WriteArray(w, xoff=r, yoff=c)
+            z_band.WriteArray(z, xoff=r, yoff=c)
+            alpha_band.WriteArray(alpha, xoff=r, yoff=c)
+
+            duration = timeit.default_timer() - start_time
+            df = df.append({'idx_i': i, 'idx_j': j, 'Iterations': iter_count, 'Duration': duration}, ignore_index=True)
+            print("Index: ", (i, j), "\tIteration: ", iter_count, "\tdt: ", duration)
+
+    u_band.FlushCache()
+    v_band.FlushCache()
+    w_band.FlushCache()
+    z_band.FlushCache()
+
+    df.to_csv(meta_file, index=False)
+
+    return 0
+
+
 def ainsworth_orig(
         cov_dir,
         crosstalk_dir,
@@ -828,20 +1195,20 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
     v_out = out_dir + "v"
     w_out = out_dir + "w"
     z_out = out_dir + "z"
-    alpha_out = out_dir + "alpha"
+    # alpha_out = out_dir + "alpha"
 
     driver = gdal.GetDriverByName("ENVI")
     uout_f = driver.Create(u_out, r, c, 1, gdalconst.GDT_CFloat32)
     vout_f = driver.Create(v_out, r, c, 1, gdalconst.GDT_CFloat32)
     wout_f = driver.Create(w_out, r, c, 1, gdalconst.GDT_CFloat32)
     zout_f = driver.Create(z_out, r, c, 1, gdalconst.GDT_CFloat32)
-    alphaout_f = driver.Create(alpha_out, r, c, 1, gdalconst.GDT_CFloat32)
+    # alphaout_f = driver.Create(alpha_out, r, c, 1, gdalconst.GDT_CFloat32)
 
     uout_b = uout_f.GetRasterBand(1)
     vout_b = vout_f.GetRasterBand(1)
     wout_b = wout_f.GetRasterBand(1)
     zout_b = zout_f.GetRasterBand(1)
-    alphaout_b = alphaout_f.GetRasterBand(1)
+    # alphaout_b = alphaout_f.GetRasterBand(1)
 
     if range_direction == 0:
         u_dat = np.zeros((1, c), dtype=np.complex)
@@ -852,8 +1219,8 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         w_n = np.zeros((1, c))
         z_dat = np.zeros((1, c), dtype=np.complex)
         z_n = np.zeros((1, c))
-        alpha_dat = np.zeros((1, c), dtype=np.complex)
-        alpha_n = np.zeros((1, c))
+        # alpha_dat = np.zeros((1, c), dtype=np.complex)
+        # alpha_n = np.zeros((1, c))
 
         for i in range(r):
             for j in range(c):
@@ -861,7 +1228,7 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                 v = v_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 w = w_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 z = z_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
-                alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
+                # alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
 
                 if (not np.isnan(u)) and (np.abs(u) <= 1.0):
                     u_dat[0][j] += u
@@ -883,10 +1250,10 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                     z_n[0][j] += 1
                     # print(z)
 
-                if not np.isnan(alpha):
-                    alpha_dat[0][j] += alpha
-                    alpha_n[0][j] += 1
-                    # print(alpha)
+                # if not np.isnan(alpha):
+                #     alpha_dat[0][j] += alpha
+                #     alpha_n[0][j] += 1
+                #     # print(alpha)
 
                 print(i, j)
 
@@ -905,14 +1272,14 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         v_avg = v_dat / v_n
         w_avg = w_dat / w_n
         z_avg = z_dat / z_n
-        alpha_avg = alpha_dat / alpha_n
+        # alpha_avg = alpha_dat / alpha_n
 
         for r_id in range(r):
             uout_b.WriteArray(u_avg.T, xoff=r_id, yoff=0)
             vout_b.WriteArray(v_avg.T, xoff=r_id, yoff=0)
             wout_b.WriteArray(w_avg.T, xoff=r_id, yoff=0)
             zout_b.WriteArray(z_avg.T, xoff=r_id, yoff=0)
-            alphaout_b.WriteArray(alpha_avg.T, xoff=r_id, yoff=0)
+            # alphaout_b.WriteArray(alpha_avg.T, xoff=r_id, yoff=0)
 
             print("Written: ", r_id)
 
@@ -920,7 +1287,7 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         vout_b.FlushCache()
         wout_b.FlushCache()
         zout_b.FlushCache()
-        alphaout_b.FlushCache()
+        # alphaout_b.FlushCache()
 
         return 0
 
@@ -933,8 +1300,8 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         w_n = np.zeros((r, 1))
         z_dat = np.zeros((r, 1), dtype=np.complex)
         z_n = np.zeros((r, 1))
-        alpha_dat = np.zeros((r, 1), dtype=np.complex)
-        alpha_n = np.zeros((r, 1))
+        # alpha_dat = np.zeros((r, 1), dtype=np.complex)
+        # alpha_n = np.zeros((r, 1))
 
         for i in range(r):
             for j in range(c):
@@ -942,7 +1309,7 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                 v = v_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 w = w_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
                 z = z_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
-                alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
+                # alpha = alpha_b.ReadAsArray(xoff=i, yoff=j, win_xsize=1, win_ysize=1)[0][0]
 
                 if (np.isfinite(u)) and (np.abs(u) <= 1.0):
                     u_dat[i][0] += u
@@ -960,9 +1327,9 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
                     z_dat[i][0] += z
                     z_n[i][0] += 1
 
-                if np.isfinite(alpha):
-                    alpha_dat[i][0] += alpha
-                    alpha_n[i][0] += 1
+                # if np.isfinite(alpha):
+                #     alpha_dat[i][0] += alpha
+                #     alpha_n[i][0] += 1
 
                 print(i, j)
 
@@ -974,21 +1341,21 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         np.save(out_dir + 'w_count.npy', w_n)
         np.save(out_dir + 'z_sum.npy', z_dat)
         np.save(out_dir + 'z_count.npy', z_n)
-        np.save(out_dir + 'v_sum.npy', alpha_dat)
-        np.save(out_dir + 'v_count.npy', alpha_n)
+        # np.save(out_dir + 'v_sum.npy', alpha_dat)
+        # np.save(out_dir + 'v_count.npy', alpha_n)
 
         u_avg = u_dat / u_n
         v_avg = v_dat / v_n
         w_avg = w_dat / w_n
         z_avg = z_dat / z_n
-        alpha_avg = alpha_dat / alpha_n
+        # alpha_avg = alpha_dat / alpha_n
 
         for c_id in range(c):
             uout_b.WriteArray(u_avg.T, xoff=0, yoff=c_id)
             vout_b.WriteArray(v_avg.T, xoff=0, yoff=c_id)
             wout_b.WriteArray(w_avg.T, xoff=0, yoff=c_id)
             zout_b.WriteArray(z_avg.T, xoff=0, yoff=c_id)
-            alphaout_b.WriteArray(alpha_avg.T, xoff=0, yoff=c_id)
+            # alphaout_b.WriteArray(alpha_avg.T, xoff=0, yoff=c_id)
 
             print("Written: ", c_id)
 
@@ -996,6 +1363,6 @@ def range_binning(crstlk_dir, out_dir, range_direction=0):
         vout_b.FlushCache()
         wout_b.FlushCache()
         zout_b.FlushCache()
-        alphaout_b.FlushCache()
+        # alphaout_b.FlushCache()
 
         return 0
